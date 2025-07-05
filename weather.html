@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Animated Weather Toggle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+      background: #020617;
+    }
+
+    video.bg-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -10;
+    }
+
+    .sun {
+      position: absolute;
+      top: 100px;
+      right: 80px;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, #ffe066, #f9ca24);
+      border-radius: 50%;
+      box-shadow: 0 0 40px 15px rgba(255, 230, 100, 0.8);
+      animation: pulse 4s ease-in-out infinite;
+      z-index: -2;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .cloud {
+      position: absolute;
+      top: 100px;
+      left: -300px;
+      width: 200px;
+      height: 60px;
+      background: #fff;
+      border-radius: 100px;
+      filter: blur(6px);
+      animation: moveCloud 60s linear infinite;
+    }
+
+    .cloud::before,
+    .cloud::after {
+      content: '';
+      position: absolute;
+      background: #fff;
+      border-radius: 100px;
+    }
+
+    .cloud::before {
+      width: 100px;
+      height: 100px;
+      top: -30px;
+      left: 50px;
+    }
+
+    .cloud::after {
+      width: 120px;
+      height: 120px;
+      top: -40px;
+      left: 100px;
+    }
+
+    @keyframes moveCloud {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(150vw); }
+    }
+
+    .raindrop {
+      position: absolute;
+      width: 2px;
+      height: 16px;
+      background: #7cd3f7;
+      opacity: 0.6;
+      animation: fall linear infinite;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-100px); }
+      100% { transform: translateY(100vh); }
+    }
+
+    .snowflake {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.8;
+      animation: snowfall linear infinite;
+    }
+
+    @keyframes snowfall {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100vh) rotate(360deg); }
+    }
+
+    .wind {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: -3;
+    }
+
+    .wind-line {
+      position: absolute;
+      width: 80px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.2);
+      animation: blow 4s linear infinite;
+    }
+
+    @keyframes blow {
+      0% { transform: translateX(-100px); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateX(100vw); opacity: 0; }
+    }
+
+    .lightning {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .hidden-layer {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="text-white">
+
+  <video autoplay muted loop playsinline class="bg-video">
+    <source src="https://cdn.coverr.co/videos/coverr-a-rainy-window-3189/1080p.mp4" type="video/mp4">
+  </video>
+
+  <!-- Weather Elements -->
+  <div id="sun" class="sun"></div>
+  <div id="cloud1" class="cloud"></div>
+  <div id="cloud2" class="cloud" style="top: 200px; left: -250px;"></div>
+
+  <div class="wind" id="wind"></div>
+  <div id="lightning" class="lightning"></div>
+
+  <!-- Snow + Rain dynamically generated -->
+  <div id="particles"></div>
+
+  <!-- Main UI -->
+  <div class="relative z-10 pt-24 px-6 max-w-xl mx-auto text-center">
+    <h1 class="text-4xl font-light">Weather Simulator</h1>
+    <h2 class="text-[72px] font-thin leading-tight" id="temp">84°</h2>
+    <p class="text-lg" id="condition">Thunderstorm</p>
+
+    <!-- Toggle Dropdown -->
+    <div class="mt-6">
+      <select id="weatherToggle" class="text-black px-4 py-2 rounded bg-white">
+        <option value="sun">☀️ Sunny</option>
+        <option value="rain">🌧 Rainy</option>
+        <option value="snow">❄️ Snowy</option>
+        <option value="wind">💨 Windy</option>
+        <option value="storm">⛈ Thunderstorm</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    const particles = document.getElementById('particles');
+    const wind = document.getElementById('wind');
+    const lightning = document.getElementById('lightning');
+    const sun = document.getElementById('sun');
+    const clouds = [document.getElementById('cloud1'), document.getElementById('cloud2')];
+    const temp = document.getElementById('temp');
+    const condition = document.getElementById('condition');
+
+    function clearParticles() {
+      particles.innerHTML = '';
+      lightning.style.opacity = 0;
+      wind.innerHTML = '';
+    }
+
+    function createRain() {
+      for (let i = 0; i < 80; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'raindrop';
+        drop.style.left = Math.random() * 100 + 'vw';
+        drop.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+        drop.style.animationDelay = Math.random() * 5 + 's';
+        particles.appendChild(drop);
+      }
+    }
+
+    function createSnow() {
+      for (let i = 0; i < 50; i++) {
+        const snow = document.createElement('div');
+        snow.className = 'snowflake';
+        snow.style.left = Math.random() * 100 + 'vw';
+        snow.style.animationDuration = (Math.random() * 5 + 5) + 's';
+        snow.style.opacity = Math.random();
+        particles.appendChild(snow);
+      }
+    }
+
+    function createWind() {
+      for (let i = 0; i < 20; i++) {
+        const line = document.createElement('div');
+        line.className = 'wind-line';
+        line.style.top = Math.random() * 100 + 'vh';
+        line.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        line.style.left = -100 + 'px';
+        wind.appendChild(line);
+      }
+    }
+
+    function flashLightning() {
+      lightning.style.opacity = '0.8';
+      setTimeout(() => { lightning.style.opacity = '0'; }, 100);
+      setTimeout(() => { lightning.style.opacity = '0.6'; }, 200);
+      setTimeout(() => { lightning.style.opacity = '0'; }, 300);
+    }
+
+    setInterval(() => {
+      if (currentWeather === 'storm') flashLightning();
+    }, 5000);
+
+    let currentWeather = 'sun';
+
+    document.getElementById('weatherToggle').addEventListener('change', (e) => {
+      const mode = e.target.value;
+      currentWeather = mode;
+      clearParticles();
+
+      // Reset display
+      sun.classList.add('hidden-layer');
+      clouds.forEach(c => c.classList.add('hidden-layer'));
+
+      switch (mode) {
+        case 'sun':
+          sun.classList.remove('hidden-layer');
+          temp.innerText = '92°';
+          condition.innerText = 'Sunny';
+          break;
+        case 'rain':
+          createRain();
+          clouds.forEach(c => c.classList.remove('hidden-layer'));
+          temp.innerText = '76°';
+          condition.innerText = 'Rainy';
+          break;
+        case 'snow':
+          createSnow();
+          clouds.forEach(c => c.classList.remove('hidden-layer'));
+          temp.innerText = '30°';
+          condition.innerText = 'Snowfall';
+          break;
+        case 'wind':
+          createWind();
+          clouds.forEach(c => c.classList.remove('hidden-layer'));
+          temp.innerText = '70°';
+          condition.innerText = 'Windy';
+          break;
+        case 'storm':
+          createRain();
+          createWind();
+          clouds.forEach(c => c.classList.remove('hidden-layer'));
+          temp.innerText = '84°';
+          condition.innerText = 'Thunderstorm';
+          break;
+      }
+    });
+
+    // Init: set sunny
+    sun.classList.remove('hidden-layer');
+  </script>
+</body>
+</html>
